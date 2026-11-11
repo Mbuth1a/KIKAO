@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+
+# Dependencies
+node_modules/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+*service-account*.json
+*-adminsdk-*.json
+
+# Firebase local files
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# Local backups
+*.bak
+*.pre-auth.bak
+
+# Cloudflare local executable and archive
+cloudflared
+cloudflared.tgz

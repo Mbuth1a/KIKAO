@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#12251f">
+  <meta name="description" content="Kikao helps people in Nairobi organise small-group plans, parties and road trips safely.">
+  <title>Kikao — Make the plan happen</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" data-action="go" data-view="discover" aria-label="Kikao home">
+        <span class="brand-mark">K</span>
+        <span>Kikao<span class="brand-dot">.</span></span>
+      </a>
+      <div class="topbar-location"><span class="pin-dot"></span> Nairobi, Kenya</div>
+      <button class="avatar-button" data-action="go" data-view="profile" aria-label="Open profile">
+        <span id="avatar-initials">?</span>
+      </button>
+    </header>
+
+    <main id="main-content">
+      <section class="view active" id="view-discover">
+        <div class="hero">
+          <div class="hero-copy">
+            <p class="eyebrow light">GOOD PLANS. GOOD PEOPLE.</p>
+            <h1>Your people are<br><em>one plan away.</em></h1>
+            <p class="hero-sub">Find a crew for tonight, this weekend, or the open road.</p>
+            <button class="button button-lime" data-action="go" data-view="create">＋ Create a plan</button>
+          </div>
+          <div class="hero-art" aria-hidden="true">
+            <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+            <div class="art-card art-card-main"><span>✦</span><b>THE<br>WEEKEND<br>IS YOURS</b><small>NAIROBI · KE</small></div>
+            <div class="art-pill art-pill-one">4 spots left</div>
+            <div class="art-pill art-pill-two">KES 2,000</div>
+            <div class="art-spark">✳</div>
+          </div>
+        </div>
+
+        <div class="section-heading">
+          <div><p class="eyebrow">THE CITY IS YOURS</p><h2>Find your next kikao</h2></div>
+          <span class="live-count"><i></i> <span id="live-count">3</span> plans nearby</span>
+        </div>
+
+        <div class="filter-bar">
+          <label class="filter-search"><span>⌕</span><input id="search-input" type="search" placeholder="Search areas or plans"></label>
+          <select id="type-filter" aria-label="Filter by plan type">
+            <option value="all">All plans</option><option value="party">Parties</option><option value="roadtrip">Road trips</option><option value="chill">Chill</option>
+          </select>
+          <select id="budget-filter" aria-label="Filter by budget">
+            <option value="all">Any budget</option><option value="1500">Under KES 1,500</option><option value="2500">Under KES 2,500</option><option value="5000">Under KES 5,000</option>
+          </select>
+        </div>
+        <div class="feed-grid" id="plan-feed"></div>
+        <div class="empty-state hidden" id="empty-feed"><span>◌</span><h3>No plans match those filters</h3><p>Try a different area, plan type or budget.</p><button class="button button-outline" data-action="clear-filters">Clear filters</button></div>
+        <div class="safety-strip"><span class="safety-icon">✳</span><div><b>Good times start with good decisions.</b><p>Kikao plans are public-venue-first. Verify people, keep a trusted contact informed and look out for your crew.</p></div><button data-action="go" data-view="safety" class="text-link">Safety centre →</button></div>
+      </section>
+
+      <section class="view" id="view-create">
+        <div class="page-intro"><p class="eyebrow">BRING PEOPLE TOGETHER</p><h1>Put a plan<br><em>on the table.</em></h1><p>Set the details. We’ll help you fill the spots.</p></div>
+        <form id="create-form" class="form-card">
+          <div class="form-section-title"><span>01</span><div><b>The basics</b><small>What are we getting together for?</small></div></div>
+          <div class="field-grid">
+            <label class="field full"><span>Plan name</span><input name="title" maxlength="60" placeholder="e.g. Saturday rooftop link-up" required></label>
+            <label class="field"><span>Plan type</span><select name="type" id="create-type"><option value="party">Party / drinks</option><option value="roadtrip">Road trip</option><option value="chill">Chill / food</option></select></label>
+            <label class="field"><span>Nairobi area</span><select name="area"><option>Westlands</option><option>Kilimani</option><option>CBD</option><option>Lavington</option><option>Ngong Road</option><option>Karen</option><option>Ruaka</option><option>Gigiri</option><option>Other Nairobi</option></select></label>
+            <label class="field"><span>Date</span><input type="date" name="date" id="create-date" required></label>
+            <label class="field"><span>Start time</span><input type="time" name="time" value="18:00" required></label>
+            <label class="field"><span>Budget per person (KES)</span><input type="number" name="budget" min="100" max="100000" step="50" placeholder="2000" required></label>
+            <label class="field"><span>Open spots</span><input type="number" name="spots" min="2" max="20" value="4" required></label>
+          </div>
+          <div class="field full" id="drink-field"><span>Drinks preference</span><select name="drinks"><option value="Alcohol optional">Alcohol optional</option><option value="Alcohol-focused">Alcohol-focused</option><option value="Non-alcoholic">Non-alcoholic options only</option><option value="Bring your own">Bring your own (where lawful)</option></select><small class="field-help">Kikao does not sell, deliver or advertise alcohol. Hosts are responsible for choosing lawful, licensed public venues.</small></div>
+          <label class="field full"><span>Vibe</span><input name="vibe" maxlength="48" placeholder="e.g. Afrobeats, easy conversations, new faces"></label>
+          <div class="field full"><span>Venue visibility</span><div class="venue-choice"><span class="venue-lock">⌖</span><div><b>Public venue · exact location shared after approval</b><small>Private-home plans are not enabled in this first version.</small></div><span class="status-chip">DEFAULT</span></div></div>
+          <label class="field full"><span>Venue name (kept private until approval)</span><input name="venue" maxlength="80" placeholder="Optional — e.g. venue name"></label>
+
+          <div class="roadtrip-fields hidden" id="roadtrip-fields">
+            <div class="form-section-title"><span>02</span><div><b>Road-trip details</b><small>Make the journey clear before people join.</small></div></div>
+            <div class="field-grid">
+              <label class="field"><span>Destination</span><input name="destination" maxlength="60" placeholder="e.g. Naivasha"></label>
+              <label class="field"><span>Transport</span><select name="transport"><option>Host has a car</option><option>Shared hired transport</option><option>Meet at departure point</option></select></label>
+              <label class="field"><span>Estimated transport cost / person (KES)</span><input name="transportCost" type="number" min="0" step="50" placeholder="1500"></label>
+              <label class="field"><span>Pickup area</span><input name="pickup" maxlength="60" placeholder="e.g. Westlands"></label>
+            </div>
+            <label class="check-row"><input type="checkbox" name="designatedDriver" id="designated-driver"><span><b>Designated driver confirmed</b><small>The driver must not consume alcohol. This is a required road-trip safety rule.</small></span></label>
+          </div>
+
+          <div class="form-section-title"><span>03</span><div><b>House rules</b><small>Set expectations before anyone requests a spot.</small></div></div>
+          <label class="field full"><span>Anything guests should know?</span><textarea name="rules" rows="3" maxlength="240" placeholder="e.g. Arrive on time, split bills fairly, respect everyone's boundaries."></textarea></label>
+          <label class="check-row"><input type="checkbox" name="publicVenue" checked required><span><b>I confirm this is a public, licensed venue or a public meeting point.</b><small>Exact venue details remain hidden from the public feed.</small></span></label>
+          <button class="button button-dark button-wide" type="submit">Publish my plan <span>→</span></button>
+          <p class="form-note">Publishing is free in this prototype. No real payments are processed.</p>
+        </form>
+      </section>
+
+      <section class="view" id="view-activity">
+        <div class="page-intro compact"><p class="eyebrow">YOUR KIKAO SPACE</p><h1>Plans &<br><em>people.</em></h1><p>Track requests, confirmations and the plans you host.</p></div>
+        <div class="activity-tabs"><button class="activity-tab active" data-action="activity-tab" data-tab="joining">I'm joining <span id="joining-count">0</span></button><button class="activity-tab" data-action="activity-tab" data-tab="hosting">I'm hosting <span id="hosting-count">0</span></button></div>
+        <div id="joining-panel"></div><div id="hosting-panel" class="hidden"></div>
+      </section>
+
+      <section class="view" id="view-profile">
+        <div class="page-intro compact"><p class="eyebrow">YOUR ACCOUNT</p><h1>Your profile.</h1><p>Verification and safety settings.</p></div>
+        <div class="profile-card">
+          <div class="profile-avatar" id="profile-avatar">?</div><div class="profile-main"><h2 id="profile-name">Guest</h2><p id="profile-phone">Complete onboarding to join a plan.</p><span class="verified-label" id="verified-label">○ Not verified</span></div>
+          <button class="button button-outline button-small" id="edit-profile" data-action="edit-profile">Edit</button>
+        </div>
+        <div class="settings-card">
+          <div class="settings-row"><div><b>Identity verification</b><small>Phone and age check · demo verification</small></div><span id="verification-status" class="status-chip">PENDING</span></div>
+          <div class="settings-row"><div><b>Trusted contact</b><small>Someone who can receive your plan details.</small></div><button class="text-link" data-action="trusted-contact">Set up →</button></div>
+          <div class="settings-row"><div><b>Payment methods</b><small>M-Pesa · simulated STK Push in this prototype.</small></div><span class="mpesa-word">M-PESA</span></div>
+          <div class="settings-row"><div><b>Minimum age</b><small id="age-rule-copy">18+ demo setting · configurable before launch.</small></div><span class="status-chip">18+</span></div>
+        </div>
+        <button class="button button-outline button-wide" data-action="go" data-view="safety">Open safety centre</button>
+        <button class="text-link reset-link" data-action="reset-demo">Reset prototype data</button>
+      </section>
+
+      <section class="view" id="view-safety">
+        <div class="page-intro compact"><p class="eyebrow">LOOK OUT FOR YOUR CREW</p><h1>Safety is<br><em>part of the plan.</em></h1><p>Practical controls for meeting new people and travelling together.</p></div>
+        <div class="safety-grid">
+          <article class="safety-card"><span class="safety-card-icon">⌖</span><h3>Meet in public</h3><p>Choose a licensed public venue or agreed public pickup point. Avoid moving to a private location with people you have just met.</p></article>
+          <article class="safety-card"><span class="safety-card-icon">◉</span><h3>Verify the crew</h3><p>Review profile verification and host details. Never share your PIN, passwords or unlocked phone.</p></article>
+          <article class="safety-card"><span class="safety-card-icon">↗</span><h3>Share your plan</h3><p>Send your plan, host profile and check-in time to a trusted contact before leaving.</p><button class="text-link" data-action="share-plan">Share a demo plan →</button></article>
+          <article class="safety-card"><span class="safety-card-icon">◎</span><h3>Drink safety</h3><p>Keep your drink in sight, accept drinks only from trusted sources, and leave with your own trusted group if you feel unsafe.</p></article>
+          <article class="safety-card"><span class="safety-card-icon">⌁</span><h3>Road-trip rule</h3><p>A designated driver must remain alcohol-free. Agree on pickup, route, return time and cost split before departure.</p></article>
+          <article class="safety-card"><span class="safety-card-icon">!</span><h3>Need urgent help?</h3><p>If you are in immediate danger, move to a safe public place and contact local emergency services.</p><button class="button button-danger button-small" data-action="sos">Emergency options</button></article>
+        </div>
+        <div class="safety-footer"><b>Report, block and get help.</b><p>Every plan and profile has a report option. Kikao's demo controls do not contact emergency services or provide live monitoring.</p><button class="button button-outline" data-action="report">Report a concern</button></div>
+      </section>
+
+      <section class="view" id="view-lobby">
+        <div id="lobby-content"></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Main navigation">
+      <button class="nav-item active" data-action="go" data-view="discover"><span>⌂</span><small>Discover</small></button>
+      <button class="nav-item" data-action="go" data-view="create"><span>＋</span><small>Host</small></button>
+      <button class="nav-item" data-action="go" data-view="activity"><span>◷</span><small>Activity</small><i id="nav-activity-dot" class="nav-dot hidden"></i></button>
+      <button class="nav-item" data-action="go" data-view="profile"><span>◎</span><small>Profile</small></button>
+    </nav>
+  </div>
+
+  <div class="modal-backdrop hidden" id="modal-backdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button class="modal-close" data-action="close-modal" aria-label="Close">×</button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./app.js"></script>
+  
+</body>
+</html>
