@@ -7,11 +7,19 @@ import {
   saveUserProfile,
   getUserProfile
 } from "./firebase.js";
+import { auth } from "./firebase.js";
+import {
+  createPlan as createPlanInFirestore,
+  subscribeToPlans,
+  subscribeToMyRequests,
+  subscribeToHostedRequests,
+  requestToJoin,
+  decideJoinRequest,
+  getPlanPrivateDetails
+} from "./kikao-data.js";
 (() => {
   "use strict";
   const MIN_AGE = 18; // Change to 21 if required by the final legal position.
-  const VERIFY_FEE = 5; // KES demo default; configure before production.
-  const DEFAULT_DEPOSIT = 300; // KES demo default; configure before production.
   const STORAGE_KEY = "kikao-pwa-demo-v1";
   const $ = (s, root=document) => root.querySelector(s);
   const $$ = (s, root=document) => [...root.querySelectorAll(s)];
@@ -48,7 +56,20 @@ import {
   catch { state = initialState(); }
   if (!state.plans || !state.plans.length) state.plans = seedPlans();
 
-  function save(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); }
+  let unsubscribePlans = null;
+  let unsubscribeMyRequests = null;
+  let unsubscribeHostedRequests = null;
+
+  function save(){
+    const localState = {
+      ...state,
+      plans: seedPlans(),
+      requests: [],
+      hostedRequests: [],
+      payments: []
+    };
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(localState));
+  }
   function toast(message){
     const el=$("#toast"); el.textContent=message; el.classList.add("show");
     clearTimeout(toast.timer); toast.timer=setTimeout(()=>el.classList.remove("show"),2600);
@@ -58,9 +79,18 @@ import {
   function isVerified(){ return !!state.profile?.verified; }
   function planById(id){ return state.plans.find(p=>p.id===id); }
   function myRequest(planId){ return state.requests.find(r=>r.planId===planId); }
-  function getMyPlans(){ return state.plans.filter(p=>p.createdBy==="me"); }
-  function statusLabel(status){ return ({pending:"Awaiting host",approved:"Approved · deposit due",confirmed:"Spot confirmed",declined:"Not approved",waitlisted:"On waitlist"})[status] || status; }
-  function typeLabel(type){ return type==="roadtrip"?"Road trip":type==="party"?"Party / drinks":"Chill / food"; }
+  function getMyPlans(){
+    const uid = state.profile?.uid;
+    return uid ? state.plans.filter(p=>p.hostId===uid) : [];
+  }
+  function statusLabel(status){
+    return ({
+      pending:"Awaiting host",
+      approved:"Approved · lobby unlocked",
+      declined:"Not approved",
+      waitlisted:"On waitlist"
+    })[status] || status;
+  }  function typeLabel(type){ return type==="roadtrip"?"Road trip":type==="party"?"Party / drinks":"Chill / food"; }
   function typeSymbol(type){ return type==="roadtrip"?"↗":type==="party"?"♫":"✳"; }
   function showModal(html){ $("#modal-body").innerHTML=html; $("#modal-backdrop").classList.remove("hidden"); }
   function closeModal(){ $("#modal-backdrop").classList.add("hidden"); $("#modal-body").innerHTML=""; }
@@ -86,11 +116,37 @@ import {
   function planCard(p){
     const left=Math.max(0,Number(p.spots)-Number(p.joined||0));
     const req=myRequest(p.id);
-    const isHost=p.createdBy==="me";
-    const isFull=left===0;
-    let actionText=isHost?"Your plan":req?(req.status==="confirmed"?"Open lobby":req.status==="pending"?"Request pending":req.status==="approved"?"Pay deposit":req.status==="waitlisted"?"On waitlist":"Request again"):(isFull?"Join waitlist":"Request to join");
-    let disabled=isHost || (req && ["pending","confirmed","waitlisted"].includes(req.status));
-    const action=req?.status==="confirmed"?"open-lobby":req?.status==="approved"?"pay-deposit":req?.status==="pending"?"none":req?.status==="waitlisted"?"none":isFull?"join-waitlist":"join";
+    const isDemo=p.createdBy==="seed" || String(p.id).startsWith("seed-");
+    const isHost=!!state.profile?.uid && p.hostId===state.profile.uid;
+
+    let action="join";
+    let actionText="Request to join";
+    let disabled=false;
+
+    if(isDemo){
+      action="none";
+      actionText="Demo plan · joining disabled";
+      disabled=true;
+    } else if(isHost){
+      action="none";
+      actionText="Your plan";
+      disabled=true;
+    } else if(req?.status==="approved"){
+      action="open-lobby";
+      actionText="Open lobby";
+    } else if(req?.status==="pending"){
+      action="none";
+      actionText="Request pending";
+      disabled=true;
+    } else if(req?.status==="waitlisted"){
+      action="none";
+      actionText="On waitlist";
+      disabled=true;
+    } else if(req?.status==="declined"){
+      action="join";
+      actionText="Request again";
+    }
+
     return `<article class="plan-card">
       <div class="plan-cover cover-${escapeHTML(p.type)}"><span class="type-label">${escapeHTML(typeLabel(p.type))}</span><span class="cover-symbol">${typeSymbol(p.type)}</span><h3>${escapeHTML(p.title)}</h3></div>
       <div class="plan-card-body">

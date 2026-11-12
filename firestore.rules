@@ -1,0 +1,73 @@
+﻿rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownsUser(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function validUserProfile(userId) {
+      return request.resource.data.keys().hasAll([
+        'uid',
+        'name',
+        'phone',
+        'age',
+        'verified',
+        'verificationMethod',
+        'verifiedAt',
+        'createdAt',
+        'updatedAt'
+      ])
+      && request.resource.data.keys().hasOnly([
+        'uid',
+        'name',
+        'phone',
+        'age',
+        'verified',
+        'verificationMethod',
+        'verifiedAt',
+        'createdAt',
+        'updatedAt'
+      ])
+      && request.resource.data.uid == userId
+      && request.resource.data.phone == request.auth.token.phone_number
+      && request.resource.data.name is string
+      && request.resource.data.name.size() >= 1
+      && request.resource.data.name.size() <= 40
+      && request.resource.data.age is int
+      && request.resource.data.age >= 18
+      && request.resource.data.age <= 120
+      && request.resource.data.verified == true
+      && request.resource.data.verificationMethod == 'firebase-phone'
+      && request.resource.data.verifiedAt is timestamp
+      && request.resource.data.createdAt is timestamp
+      && request.resource.data.updatedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if ownsUser(userId);
+      allow list: if false;
+
+      allow create: if ownsUser(userId)
+        && validUserProfile(userId);
+
+      allow update: if ownsUser(userId)
+        && validUserProfile(userId)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.phone == resource.data.phone
+        && request.resource.data.verifiedAt == resource.data.verifiedAt;
+
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
