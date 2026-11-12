@@ -241,7 +241,7 @@ function openOnboarding(message = "Create your profile to join Kikao.") {
         <input name="phone" type="tel"
           value="${escapeHTML(existing.phone || "")}"
           placeholder="07XX XXX XXX"
-          pattern="[0-9+() -]{9,16}" required>
+          pattern="[+]?[0-9]{9,16}" required> 
       </label>
 
       <label class="field">
@@ -423,10 +423,7 @@ function openOnboarding(message = "Create your profile to join Kikao.") {
       $("#cancel-payment").addEventListener("click",closeModal);
     });
   }
-  function payDeposit(planId){
-    const r=myRequest(planId); if(!r||r.status!=="approved")return;
-    openPayment({kind:"deposit",amount:r.deposit||DEFAULT_DEPOSIT,phone:state.profile?.phone,onSuccess:()=>{go("activity");},planId});
-  }
+  
   function createPlan(form){
     if(!state.profile?.verified){openOnboarding("Verify your profile before publishing a plan.");return;}
     const f=new FormData(form), type=String(f.get("type"));

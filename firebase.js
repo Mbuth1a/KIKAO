@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
 import {
-  getFirestore,
+  initializeFirestore,
   doc,
   getDoc,
   setDoc,
@@ -30,7 +30,7 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = initializeFirestore(app, {}, "default");
 
 auth.languageCode = "en";
 
