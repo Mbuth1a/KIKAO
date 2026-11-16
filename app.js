@@ -60,12 +60,6 @@ import { TERMS_VERSION, TERMS_TITLE, TERMS_SECTIONS } from "./terms.js";
   const escapeHTML = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-  // const seedPlans = () => [
-  //   { id: "seed-party", title: "Rooftop sounds & new faces", type: "party", area: "Westlands", date: dateISO(nextFriday()), time: "19:00", budget: 2200, spots: 5, joined: 2, host: "Amina W.", hostId: "seed-host-1", hostVerified: true, drinks: "Alcohol optional", vibe: "Afrobeats · easy conversations", rules: "Come as you are. Respect boundaries and split your own bill.", destination: "", transportCost: 0, womenOnly: false, status: "open", createdBy: "seed" },
-  //   { id: "seed-road", title: "Nairobi → Naivasha day escape", type: "roadtrip", area: "Westlands", date: dateISO(nextSaturday()), time: "07:00", budget: 3800, spots: 4, joined: 2, host: "Brian K.", hostId: "seed-host-2", hostVerified: true, drinks: "Non-alcoholic", vibe: "Road views · lakeside lunch", rules: "Driver stays alcohol-free. Return time and costs agreed before departure.", destination: "Naivasha", transportCost: 1600, womenOnly: false, createdBy: "seed", status: "open", designatedDriver: true },
-  //   { id: "seed-chill", title: "Nyama choma & slow Sunday", type: "chill", area: "Kilimani", date: dateISO(addDays(6)), time: "15:00", budget: 1500, spots: 3, joined: 1, host: "Njeri M.", hostId: "seed-host-3", hostVerified: true, drinks: "Alcohol optional", vibe: "Food · music · no pressure", rules: "Good energy only. Everyone is welcome.", destination: "", transportCost: 0, womenOnly: false, createdBy: "seed", status: "open" }
-  // ];
-
   /**
    * Plan templates. Tapping a card in the create form prefills the fields
    * with these values. The host still edits date/time/venue themselves —
@@ -114,7 +108,7 @@ import { TERMS_VERSION, TERMS_TITLE, TERMS_SECTIONS } from "./terms.js";
 
   const initialState = () => ({
     profile: null,
-    plans: seedPlans(),
+    plans: [],
     requests: [],
     hostedRequests: [],
     chats: {},
@@ -134,7 +128,7 @@ import { TERMS_VERSION, TERMS_TITLE, TERMS_SECTIONS } from "./terms.js";
   } catch {
     state = initialState();
   }
-  if (!state.plans || !state.plans.length) state.plans = seedPlans();
+  if (!state.plans) state.plans = [];
   if (!state.passed) state.passed = [];
   if (!state.ratings) state.ratings = {};
   if (!state.hostRatings) state.hostRatings = {};
@@ -643,7 +637,6 @@ import { TERMS_VERSION, TERMS_TITLE, TERMS_SECTIONS } from "./terms.js";
         <div class="swipe-cover cover-${escapeHTML(p.type)}">
           <span class="type-label">${escapeHTML(typeLabel(p.type))}</span>
           ${p.womenOnly ? '<span class="women-only-badge">Women only</span>' : ""}
-          ${String(p.id).startsWith("seed-") ? '<span class="demo-badge">KIKAO</span>' : ""}
           ${liveBadge}
           <h2>${escapeHTML(p.title)}</h2>
         </div>
@@ -779,14 +772,6 @@ import { TERMS_VERSION, TERMS_TITLE, TERMS_SECTIONS } from "./terms.js";
     if (!cardEl) return;
 
     if (direction === "right") {
-      if (String(planId).startsWith("seed-")) {
-        cardEl.style.transform = "translate(120vw, 0) rotate(20deg)";
-        cardEl.style.opacity = "0";
-        toast("Demo plans can’t be joined — try a real plan.");
-        setTimeout(renderFeed, 220);
-        return;
-      }
-
       const p = planById(planId);
       if (p?.spontaneous === true && planHasStarted(p)) {
         cardEl.style.transform = "translate(120vw, 0) rotate(20deg)";
@@ -830,15 +815,12 @@ import { TERMS_VERSION, TERMS_TITLE, TERMS_SECTIONS } from "./terms.js";
         if (!p) return "";
 
         let buttons = "";
-        let rateButton = "";
 
         if (r.status === "approved") {
           buttons = `
             <button class="button button-dark button-small" data-action="open-lobby" data-id="${p.id}">Open lobby</button>
             <button class="button button-outline button-small" data-action="leave-plan" data-id="${p.id}">Leave plan</button>
           `;
-
-          
         } else if (r.status === "waitlisted") {
           buttons = `<button class="button button-outline button-small" disabled>Waiting for a spot</button>`;
         }
@@ -851,7 +833,7 @@ import { TERMS_VERSION, TERMS_TITLE, TERMS_SECTIONS } from "./terms.js";
             <h3>${escapeHTML(p.title)} ${liveChip}</h3>
             <p>${escapeHTML(p.area)} · ${escapeHTML(fmtDate(p.date))} · Host: ${escapeHTML(p.host)}</p>
             <span class="activity-status ${r.status}">${escapeHTML(statusLabel(r.status))}</span>
-            <div class="activity-actions">${buttons}${rateButton}<button class="text-link" data-action="report" data-id="${p.id}">Report</button></div>
+            <div class="activity-actions">${buttons}<button class="text-link" data-action="report" data-id="${p.id}">Report</button></div>
           </div>
         </article>`;
       }).join("");
@@ -903,7 +885,8 @@ import { TERMS_VERSION, TERMS_TITLE, TERMS_SECTIONS } from "./terms.js";
 
   // ---------- Rating modal ----------
 
- 
+  // (removed — rating UI disabled; submitRating/getMyRatingForPlan/getHostRating
+  // remain imported for host-rating badges but no modal is opened from the UI)
 
   // ---------- Lobby ----------
 
@@ -1735,7 +1718,7 @@ import { TERMS_VERSION, TERMS_TITLE, TERMS_SECTIONS } from "./terms.js";
     if (unsubscribePlans) unsubscribePlans();
     unsubscribePlans = subscribeToPlans(
       (plans) => {
-        state.plans = [...seedPlans(), ...plans];
+        state.plans = plans;
         renderFeed();
         renderActivity();
       },
@@ -1784,9 +1767,6 @@ import { TERMS_VERSION, TERMS_TITLE, TERMS_SECTIONS } from "./terms.js";
       } else {
         toast("Could not get your location. Try again.");
       }
-    }
-    else if (a === "open-rating") {
-      await openRatingModal(id);
     }
     else if (a === "swipe-like") {
       const card = $(`.swipe-card[data-id="${id}"]`);
