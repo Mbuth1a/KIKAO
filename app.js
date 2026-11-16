@@ -60,7 +60,12 @@ import { TERMS_VERSION, TERMS_TITLE, TERMS_SECTIONS } from "./terms.js";
   const escapeHTML = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-  
+  const seedPlans = () => [
+    { id: "seed-party", title: "Rooftop sounds & new faces", type: "party", area: "Westlands", date: dateISO(nextFriday()), time: "19:00", budget: 2200, spots: 5, joined: 2, host: "Amina W.", hostId: "seed-host-1", hostVerified: true, drinks: "Alcohol optional", vibe: "Afrobeats · easy conversations", rules: "Come as you are. Respect boundaries and split your own bill.", destination: "", transportCost: 0, womenOnly: false, status: "open", createdBy: "seed" },
+    { id: "seed-road", title: "Nairobi → Naivasha day escape", type: "roadtrip", area: "Westlands", date: dateISO(nextSaturday()), time: "07:00", budget: 3800, spots: 4, joined: 2, host: "Brian K.", hostId: "seed-host-2", hostVerified: true, drinks: "Non-alcoholic", vibe: "Road views · lakeside lunch", rules: "Driver stays alcohol-free. Return time and costs agreed before departure.", destination: "Naivasha", transportCost: 1600, womenOnly: false, createdBy: "seed", status: "open", designatedDriver: true },
+    { id: "seed-chill", title: "Nyama choma & slow Sunday", type: "chill", area: "Kilimani", date: dateISO(addDays(6)), time: "15:00", budget: 1500, spots: 3, joined: 1, host: "Njeri M.", hostId: "seed-host-3", hostVerified: true, drinks: "Alcohol optional", vibe: "Food · music · no pressure", rules: "Good energy only. Everyone is welcome.", destination: "", transportCost: 0, womenOnly: false, createdBy: "seed", status: "open" }
+  ];
+
   /**
    * Plan templates. Tapping a card in the create form prefills the fields
    * with these values. The host still edits date/time/venue themselves —
