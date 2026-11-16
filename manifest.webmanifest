@@ -1,24 +1,19 @@
 {
-  "name": "Kikao \u2014 Make the plan happen",
+  "name": "Kikao — Make the plan happen",
   "short_name": "Kikao",
-  "description": "Find a crew for parties, chill plans and road trips in Nairobi.",
-  "start_url": "./",
+  "description": "Find a crew for tonight, this weekend, or the open road.",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#f5f6f1",
   "theme_color": "#12251f",
+  "lang": "en-KE",
   "icons": [
-    {
-      "src": "./icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ]
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-192.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "./icon-512.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "categories": ["social", "lifestyle", "travel"]
 }

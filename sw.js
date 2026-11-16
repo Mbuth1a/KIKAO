@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = "kikao-pwa-v2";
+﻿const CACHE_NAME = "kikao-pwa-v5";
 
 const APP_SHELL = [
   "./",
@@ -6,6 +6,8 @@ const APP_SHELL = [
   "./styles.css",
   "./app.js",
   "./firebase.js",
+  "./kikao-data.js",
+  "./terms.js",  
   "./manifest.webmanifest",
   "./icon.svg",
   "./icon-192.svg",
@@ -14,7 +16,7 @@ const APP_SHELL = [
   "./icon-512.png"
 ];
 
-self.addEventListener("install", event => {
+self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE_NAME);
@@ -24,53 +26,42 @@ self.addEventListener("install", event => {
   );
 });
 
-self.addEventListener("activate", event => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys();
-
       await Promise.all(
-        keys
-          .filter(key => key !== CACHE_NAME)
-          .map(key => caches.delete(key))
+        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
       );
-
       await self.clients.claim();
     })()
   );
 });
 
-self.addEventListener("fetch", event => {
+self.addEventListener("fetch", (event) => {
   const request = event.request;
-
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
-
-  // Leave external resources, including Firebase CDN modules, untouched.
+  // Leave Firebase CDN and geofire untouched.
   if (url.origin !== self.location.origin) return;
 
   event.respondWith(
     (async () => {
       try {
         const response = await fetch(request);
-
         if (response.ok) {
           const cache = await caches.open(CACHE_NAME);
           await cache.put(request, response.clone());
         }
-
         return response;
-      } catch (error) {
+      } catch {
         const cached = await caches.match(request);
-
         if (cached) return cached;
-
         if (request.mode === "navigate") {
           const fallback = await caches.match("./index.html");
           if (fallback) return fallback;
         }
-
         return new Response("Offline: resource unavailable.", {
           status: 503,
           headers: { "Content-Type": "text/plain" }

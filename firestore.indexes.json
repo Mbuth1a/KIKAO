@@ -1,0 +1,28 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "plans",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "geohash", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "joinRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "requesterId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "joinRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "hostId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

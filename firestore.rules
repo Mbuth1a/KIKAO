@@ -1,73 +1,281 @@
-﻿rules_version = '2';
-
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function signedIn() {
-      return request.auth != null;
+    // ---------- helpers ----------
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+
+    // Google sign-in replaces phone OTP. All writes that previously
+    // required phone verification now only require an authenticated
+    // session. The name is kept as `phoneVerified` so the rest of the
+    // rules file does not need to change.
+    function phoneVerified() { return signedIn(); }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(uid())).data;
+    }
+    function isWoman() {
+      return userDoc().gender == "woman";
     }
 
-    function ownsUser(userId) {
-      return signedIn() && request.auth.uid == userId;
+    // A plan is spontaneous if it's starting within the next two hours.
+    // Computed here so a malicious client can't fake the flag on a
+    // plan that's weeks away. `request.time` is Firestore's server
+    // clock, so client device clock changes don't affect it.
+    function isSpontaneous(dateStr, timeStr) {
+      let planStart = timestamp(dateStr + "T" + timeStr + ":00");
+      return planStart > request.time
+        && planStart < request.time + duration.value(2, "h");
     }
 
-    function validUserProfile(userId) {
-      return request.resource.data.keys().hasAll([
-        'uid',
-        'name',
-        'phone',
-        'age',
-        'verified',
-        'verificationMethod',
-        'verifiedAt',
-        'createdAt',
-        'updatedAt'
-      ])
-      && request.resource.data.keys().hasOnly([
-        'uid',
-        'name',
-        'phone',
-        'age',
-        'verified',
-        'verificationMethod',
-        'verifiedAt',
-        'createdAt',
-        'updatedAt'
-      ])
-      && request.resource.data.uid == userId
-      && request.resource.data.phone == request.auth.token.phone_number
-      && request.resource.data.name is string
-      && request.resource.data.name.size() >= 1
-      && request.resource.data.name.size() <= 40
-      && request.resource.data.age is int
-      && request.resource.data.age >= 18
-      && request.resource.data.age <= 120
-      && request.resource.data.verified == true
-      && request.resource.data.verificationMethod == 'firebase-phone'
-      && request.resource.data.verifiedAt is timestamp
-      && request.resource.data.createdAt is timestamp
-      && request.resource.data.updatedAt is timestamp;
-    }
-
+    // ---------- users ----------
     match /users/{userId} {
-      allow get: if ownsUser(userId);
-      allow list: if false;
+      // Owner reads own profile.
+      allow read: if signedIn() && uid() == userId;
 
-      allow create: if ownsUser(userId)
-        && validUserProfile(userId);
+      // Shared-plan read: viewer and target share at least one planId.
+      allow read: if signedIn()
+        && exists(/databases/$(database)/documents/users/$(uid()))
+        && exists(/databases/$(database)/documents/users/$(userId))
+        && get(/databases/$(database)/documents/users/$(uid())).data.planIds is list
+        && get(/databases/$(database)/documents/users/$(userId)).data.planIds is list
+        && get(/databases/$(database)/documents/users/$(uid())).data.planIds
+             .hasAny(get(/databases/$(database)/documents/users/$(userId)).data.planIds);
 
-      allow update: if ownsUser(userId)
-        && validUserProfile(userId)
-        && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.uid == resource.data.uid
-        && request.resource.data.phone == resource.data.phone
-        && request.resource.data.verifiedAt == resource.data.verifiedAt;
+      // Create: any signed-in user can create their own profile.
+      // No phone-number cross-check because Google provides the identity.
+      allow create: if signedIn() && uid() == userId
+        && request.resource.data.uid == userId
+        && request.resource.data.verified == true;
+
+      // Update: the owner can edit their profile fields.
+      allow update: if signedIn() && uid() == userId
+        && request.resource.data.uid == resource.data.uid;
 
       allow delete: if false;
     }
 
-    match /{document=**} {
-      allow read, write: if false;
+    // ---------- plans ----------
+    // PUBLIC — everything on the plan document, including venue, is readable.
+    match /plans/{planId} {
+      allow read: if true;
+
+      allow create: if phoneVerified()
+        && request.resource.data.hostId == uid()
+        && request.resource.data.joined == 1
+        && request.resource.data.spots is int
+        && request.resource.data.spots >= 2
+        && request.resource.data.spots <= 20
+        && request.resource.data.budget is number
+        && request.resource.data.budget >= 100
+        && request.resource.data.type in ["party","roadtrip","chill"]
+        && request.resource.data.drinks is string
+        && request.resource.data.womenOnly is bool
+        && request.resource.data.venue is string
+        && request.resource.data.venue.size() > 0
+        && request.resource.data.venue.size() <= 200
+        && request.resource.data.location is latlng
+        && request.resource.data.geohash is string
+        && request.resource.data.status == "open"
+        && (
+          // Non-spontaneous plans: no time constraint on the date.
+          request.resource.data.spontaneous == false
+          ||
+          // Spontaneous plans: date + time must be within the next two
+          // hours. Enforced server-side so the client can't fake it.
+          (
+            request.resource.data.spontaneous == true
+            && isSpontaneous(request.resource.data.date, request.resource.data.time)
+          )
+        );
+
+      // 1. Host edits metadata (joined and spots unchanged)
+      // 2. Approval: joined + 1, status stays open or becomes locked
+      // 3. Leave: joined - 1, status becomes open (never locked)
+      allow update: if phoneVerified() && (
+        (resource.data.hostId == uid()
+          && request.resource.data.hostId == resource.data.hostId
+          && request.resource.data.joined == resource.data.joined
+          && request.resource.data.spots == resource.data.spots)
+        ||
+        (request.resource.data.joined == resource.data.joined + 1
+          && request.resource.data.status in ["open","locked"])
+        ||
+        (request.resource.data.joined == resource.data.joined - 1
+          && request.resource.data.joined >= 1
+          && request.resource.data.status == "open")
+      );
+
+      allow delete: if phoneVerified() && resource.data.hostId == uid();
+    }
+
+    // ---------- membership ----------
+    match /planMembers/{memberId} {
+      // Read: yourself, the host, or any member of the same plan.
+      // `resource == null` guard allows existence checks on a member doc
+      // that may not yet exist (e.g. before joining).
+      allow read: if signedIn() && (
+        resource == null
+        || resource.data.uid == uid()
+        || resource.data.hostId == uid()
+        || get(/databases/$(database)/documents/plans/$(resource.data.planId)).data.hostId == uid()
+        || exists(/databases/$(database)/documents/planMembers/$(resource.data.planId + "_" + uid()))
+      );
+
+      // Create: requester self-create, OR host creating for a requester.
+      allow create: if phoneVerified()
+        && request.resource.data.role == "member"
+        && (
+          (
+            request.resource.data.uid == uid()
+            && exists(/databases/$(database)/documents/joinRequests/$(request.resource.data.planId + "_" + uid()))
+          )
+          ||
+          (
+            get(/databases/$(database)/documents/plans/$(request.resource.data.planId)).data.hostId == uid()
+            && exists(/databases/$(database)/documents/joinRequests/$(request.resource.data.planId + "_" + request.resource.data.uid))
+          )
+        );
+
+      allow update: if false;
+
+      // Delete: host removes someone, OR a member leaves themselves.
+      allow delete: if phoneVerified() && (
+        resource.data.uid == uid()
+        || get(/databases/$(database)/documents/plans/$(resource.data.planId)).data.hostId == uid()
+      );
+    }
+
+    // ---------- join requests ----------
+    match /joinRequests/{requestId} {
+      // `resource == null` guard allows existence checks on a request doc
+      // that may not yet exist.
+      allow read: if signedIn() && (
+        resource == null
+        || resource.data.requesterId == uid()
+        || resource.data.hostId == uid()
+      );
+
+      allow create: if phoneVerified()
+        && request.resource.data.requesterId == uid()
+        && request.resource.data.status in ["pending","waitlisted"]
+        && request.resource.data.hostId == get(/databases/$(database)/documents/plans/$(request.resource.data.planId)).data.hostId
+        && request.resource.data.hostId != uid()
+        && (
+          get(/databases/$(database)/documents/plans/$(request.resource.data.planId)).data.womenOnly == false
+          || isWoman()
+        );
+
+      allow update: if phoneVerified() && (
+        (resource.data.hostId == uid()
+          && request.resource.data.status in ["approved","declined"]
+          && request.resource.data.requesterId == resource.data.requesterId
+          && request.resource.data.planId == resource.data.planId)
+        ||
+        (resource.data.requesterId == uid()
+          && request.resource.data.status == "cancelled"
+          && request.resource.data.requesterId == resource.data.requesterId
+          && request.resource.data.planId == resource.data.planId
+          && request.resource.data.hostId == resource.data.hostId)
+      );
+
+      allow delete: if phoneVerified() && (
+        resource.data.hostId == uid()
+        || resource.data.requesterId == uid()
+      );
+    }
+
+    // ---------- chat ----------
+    match /planChats/{planId}/messages/{messageId} {
+      function planDoc() {
+        return get(/databases/$(database)/documents/plans/$(planId)).data;
+      }
+      function isMember() {
+        return exists(/databases/$(database)/documents/planMembers/$(planId + "_" + uid()));
+      }
+      allow read: if signedIn() && (planDoc().hostId == uid() || isMember());
+      allow create: if phoneVerified()
+        && request.resource.data.uid == uid()
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 300
+        && (planDoc().hostId == uid() || isMember());
+      allow update: if false;
+      allow delete: if signedIn() && planDoc().hostId == uid();
+    }
+
+    // ---------- presence ----------
+    match /planPresence/{planId}/members/{uid} {
+      function planDoc() {
+        return get(/databases/$(database)/documents/plans/$(planId)).data;
+      }
+      function isHost() {
+        return planDoc().hostId == request.auth.uid;
+      }
+      function isApprovedMember() {
+        return exists(/databases/$(database)/documents/planMembers/$(planId + "_" + request.auth.uid));
+      }
+      function isOwner() {
+        return request.auth.uid == uid;
+      }
+
+      allow read: if signedIn() && (isHost() || isApprovedMember());
+
+      allow create, update: if signedIn()
+        && isOwner()
+        && (isHost() || isApprovedMember())
+        && request.resource.data.uid == uid;
+
+      allow delete: if signedIn() && isOwner();
+    }
+
+    // ---------- ratings ----------
+    match /planRatings/{ratingId} {
+      function planDoc() {
+        return get(/databases/$(database)/documents/plans/$(request.resource.data.planId)).data;
+      }
+      function planHasEnded(planData) {
+        return request.time > timestamp(planData.date + "T" + planData.time + ":00");
+      }
+      function isApprovedMember(planId) {
+        return exists(/databases/$(database)/documents/planMembers/$(planId + "_" + request.auth.uid));
+      }
+
+      // `resource == null` guard is the critical fix: it permits the
+      // "does my rating already exist?" read inside submitRating's
+      // transaction, where the rating document is intentionally absent
+      // for a first-time rater.
+      allow read: if signedIn() && (
+        resource == null
+        || resource.data.hostUid == uid()
+        || resource.data.raterUid == uid()
+        || (
+          exists(/databases/$(database)/documents/plans/$(resource.data.planId))
+          && get(/databases/$(database)/documents/plans/$(resource.data.planId)).data.hostId == uid()
+        )
+        || exists(/databases/$(database)/documents/planMembers/$(resource.data.planId + "_" + uid()))
+      );
+
+      allow create: if signedIn()
+        && request.resource.data.raterUid == uid()
+        && request.resource.data.hostUid != uid()
+        && request.resource.data.planId is string
+        && request.resource.data.stars is int
+        && request.resource.data.stars >= 1
+        && request.resource.data.stars <= 5
+        && request.resource.data.comment is string
+        && request.resource.data.comment.size() <= 500
+        && (
+          request.resource.data.stars >= 4
+          || request.resource.data.comment.size() > 0
+        )
+        && exists(/databases/$(database)/documents/plans/$(request.resource.data.planId))
+        && planDoc().hostId == request.resource.data.hostUid
+        && planHasEnded(planDoc())
+        && isApprovedMember(request.resource.data.planId);
+
+      allow update, delete: if false;
     }
   }
 }
